@@ -1,0 +1,3 @@
+/home/abid/Desktop/nand2tetris/projects/06/assembler/build/CMakeFiles/rebuild_cache.dir
+/home/abid/Desktop/nand2tetris/projects/06/assembler/build/CMakeFiles/system.dir
+/home/abid/Desktop/nand2tetris/projects/06/assembler/build/CMakeFiles/edit_cache.dir

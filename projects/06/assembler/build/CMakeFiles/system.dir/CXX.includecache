@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/abid/Desktop/nand2tetris/projects/06/assembler/include/parser.cpp
+
+/home/abid/Desktop/nand2tetris/projects/06/assembler/include/parser.h
+
+/home/abid/Desktop/nand2tetris/projects/06/assembler/system.cpp
+iostream
+-
+include/parser.h
+/home/abid/Desktop/nand2tetris/projects/06/assembler/include/parser.h
+
