@@ -1,0 +1,17 @@
+#! /bin/bash
+
+cd ~/Desktop/nand2tetris/projects/06/assembler/build/
+rm -rf *
+echo
+echo "Starting Assembler......"
+echo
+cmake .. > /dev/null
+echo "Loading File....."
+echo
+make > /dev/null
+echo
+unset path
+path=$(pwd)"/"$1
+./system $path
+echo
+cd - 1> /dev/null

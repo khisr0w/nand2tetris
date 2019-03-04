@@ -187,12 +187,6 @@ assembler_BINARY_DIR:STATIC=/home/abid/Desktop/nand2tetris/projects/06/assembler
 //Value Computed by CMake
 assembler_SOURCE_DIR:STATIC=/home/abid/Desktop/nand2tetris/projects/06/assembler
 
-//Value Computed by CMake
-examples_BINARY_DIR:STATIC=/home/abid/Desktop/nand2tetris/projects/06/assembler/build
-
-//Value Computed by CMake
-examples_SOURCE_DIR:STATIC=/home/abid/Desktop/nand2tetris/projects/06/assembler
-
 
 ########################
 # INTERNAL cache entries
