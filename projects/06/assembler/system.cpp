@@ -3,6 +3,11 @@
 
 int main (int argc, char** argv) {
 
+    if (argc<2) {
+	std::cout<<"Must provide an assembly file as argument (Relative Path)"<<std::endl;
+	return 0;
+    }
+
     parser obj (argv[1]);
 
     if (obj.isFileFound) {
