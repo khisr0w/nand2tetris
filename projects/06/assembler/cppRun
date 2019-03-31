@@ -1,0 +1,38 @@
+#! /bin/bash
+
+clear
+cd ~
+if [ ! -r "cppBuildLocation" ]
+then
+	echo
+	echo -e "\033[91;1;25mFatal error, build file not found, it must be in the home directory.\033[0m"
+	echo
+	exit 1
+fi
+buildInfo=`cat cppBuildLocation`
+if [ ${#buildInfo} -eq 0 ]; then
+    echo
+    echo -e "\033[91;1;25mError, build file empty. What the fuck are you doing!!!\033[0m"
+    echo
+    exit 1
+fi
+location=${buildInfo%^*}
+if [ ! -d $location ];then
+    echo
+    echo -e "\033[91;1;25mInvalid build info, directory not found.\033[0m"
+    echo
+    exit 1
+fi
+cd $location
+rm -rf *
+echo
+echo "Building......"
+echo
+cmake .. > /dev/null
+echo "Compiling....."
+echo
+echo
+make > /dev/null
+name=`cat ../CMakeLists.txt`
+./${buildInfo#*^}
+echo
