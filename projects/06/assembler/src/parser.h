@@ -26,7 +26,7 @@ char *Comp_Commands[] =
 
 char *Dest_Commands[] =
 {
-	"NUL",
+	"NULL",
 	"M",
 	"D",
 	"MD",
@@ -38,7 +38,7 @@ char *Dest_Commands[] =
 
 char *Jump_Commands[] =
 {
-	"NUL",
+	"NULL",
 	"JGT",
 	"JEQ",
 	"JGE",
@@ -77,11 +77,12 @@ struct parser_state
 
 	command *Commands;
 	command *LastCommand;
-	int32 CommandLength;
+	// NOTE(Khisrow): L_COMMAND doesn't increment the CommandLength
+	// as it's a pseudo-command and won't invoke any machine code
+	memory_index ProgramCount;
 
 	op_status *Status;
 };
-
 
 #define PARSER_H
 #endif

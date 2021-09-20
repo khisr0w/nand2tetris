@@ -21,26 +21,11 @@ AppendCommand(parser_state *ParserState, command_type Type)
 		ParserState->LastCommand = Command;
 		Command->Type = Type;
 		if(Command->Type == C_COMMAND) Command->Value = (Command+1);
-		++ParserState->CommandLength;
+		++ParserState->ProgramCount;
 	}
 
 	return Command;
 }
-
-#if 0
-internal bool32
-IsAlphaNumeric(char *CurrentPos)
-{
-	char *Start = CurrentPos;
-	while(*Start != ' '  &&
-		  *Start != '\r' &&
-		  *Start != '\n' &&
-		  *Start != '/')
-	{
-		Start++;
-	}
-}
-#endif
 
 #define IsStringInArray(String, Array) IsStringInArray_(String, Array, ArrayCount(Array))
 internal bool32
@@ -131,14 +116,91 @@ GetIndexOfCharInStringBeforeNL(char *String, char Delimit)
 }
 
 internal void
-Parse(parser_state *ParserState)
+Advance(parser_state *ParserState)
 {
-	PlatformStdOut(ParserState->SourceStream->Base);
+	if(ParserState->CurrentCommand) ParserState->CurrentCommand = ParserState->CurrentCommand->Next;
+	else ParserState->CurrentCommand = ParserState->Commands;
+}
+
+inline bool32
+IsVariableName(char *Value)
+{
+	return (((*Value >= 'a') && (*Value <= 'z'))  ||
+			((*Value >= 'A') && (*Value <= 'Z')) ||
+			(*Value == '_') || (*Value == '.')  ||
+			(*Value == '$') || (*Value == ':'));
+}
+
+inline bool32
+IsNumber(char *Value)
+{
+	int32 StrLen = StringLength(Value);
+	for(int32 Index = 0;
+		Index < StrLen;
+		++Index)
+	{
+		if(!(Value[Index] >= '0' && Value[Index] <= '9')) return false;
+	}
+
+	return true;
+}
+
+internal void
+ParsePseudoCommands(parser_state *ParserState, symbol_state *SymbolState)
+{
+	char *CurrentPos = ParserState->SourceStream->Base;
+	int32 ProgramCount = ParserState->ProgramCount;
+
+	while(*CurrentPos)
+	{
+		switch(*CurrentPos)
+		{
+			case '(':
+			{
+				++CurrentPos;
+				char *Name = CurrentPos;
+				while(*(++CurrentPos) != ')');
+				*CurrentPos++ = '\0';
+				if(*CurrentPos != '\n') while (*(++CurrentPos) != '\n');
+				++CurrentPos;
+				AddEntry(SymbolState, Name, ProgramCount);
+
+			} break;
+
+			case '/':
+			{
+				if(*(CurrentPos + 1) == '/')
+				{
+					while(*(++CurrentPos) != '\n');
+					++CurrentPos;
+				}
+			} break;
+			case ' ': while(*(++CurrentPos) == ' '); break;
+			case '\r': CurrentPos = CurrentPos + 2; break;
+			case '\n': ++CurrentPos; break;
+			case '@':
+			default:
+			{
+				while(*(++CurrentPos) != '\n');
+				++CurrentPos;
+				++ProgramCount;
+			}
+		}
+	}
+}
+
+internal void
+ParseCommandsAndSymbolize(parser_state *ParserState, symbol_state *SymbolState)
+{
+	// PlatformStdOut(ParserState->SourceStream->Base);
 	ParserState->CurrentPos = ParserState->SourceStream->Base;
-	int32 Index = GetIndexOfCharInStringBeforeNL(ParserState->CurrentPos, '=');
 
 	while(*ParserState->CurrentPos && !(*ParserState->Status->Error))
 	{
+		if(ParserState->ProgramCount == 4523)
+		{
+			int i = 0;
+		}
 		switch(*ParserState->CurrentPos)
 		{
 			case '/':
@@ -149,7 +211,7 @@ Parse(parser_state *ParserState)
 					++ParserState->CurrentPos;
 				}
 			} break;
-
+			
 			case '@':
 			{
 				++ParserState->CurrentPos;
@@ -170,17 +232,24 @@ Parse(parser_state *ParserState)
 					while (*(++ParserState->CurrentPos) != '\n');
 				}
 				else *ParserState->CurrentPos = '\0';
+
+				if(IsVariableName((char *)Command->Value))
+				{
+					if(!Contains(SymbolState, (char *)Command->Value))
+					{
+						AddEntry(SymbolState, (char *)Command->Value, SymbolState->CurrentVarRAM++);
+					}
+				}
+				else if(!IsNumber((char *)Command->Value))
+				{
+					MakeError(ParserState->Status, "\nERROR: Invalid variable name, must begin with letters, '.', '_', '$', ':'\n");
+				}
 				++ParserState->CurrentPos;
 			} break;
 
 			case '(':
 			{
-				++ParserState->CurrentPos;
-				command *Command = AppendCommand(ParserState, L_COMMAND);
-				Command->Value = ParserState->CurrentPos;
-
-				while(*(++ParserState->CurrentPos) != ')') ++ParserState->CurrentPos;
-				*ParserState->CurrentPos = '\0';
+				while(*(++ParserState->CurrentPos) != '\0');
 				++ParserState->CurrentPos;
 				if(*ParserState->CurrentPos != '\n') while (*(++ParserState->CurrentPos) != '\n');
 				++ParserState->CurrentPos;
@@ -192,22 +261,22 @@ Parse(parser_state *ParserState)
 			case '\n': ++ParserState->CurrentPos; break;
 			default:
 			{
-				char *Dest = 0;
-				char *Comp = 0;
-				char *Jump = 0;
+				char *Dest = "NULL";
+				char *Comp = "NULL";
+				char *Jump = "NULL";
 
 				int32 EqIdx = SpliceCodeLine(ParserState, '=', &Dest, &Comp);
 				// NOTE(Khisrow): In case no '=' was found and all values were assigned
-				// to the Dest while Comp becomes null
-				if(!Comp)
+				// to the Dest while Comp becomes null, the values must be swapped.
+				if(StringCompare(Comp, "NULL"))
 				{
 					Comp = Dest;
-					Dest = 0;
+					Dest = "NULL";
 				}
 
 				int32 SemiIdx = SpliceString(Comp, ';', &Comp, &Jump);
 
-				if(Comp && IsStringInArray(Comp, Comp_Commands))
+				if(IsStringInArray(Comp, Comp_Commands))
 				{
 					// NOTE(Khisrow): Apart from Comp, either Dest, Jump or both should
 					// be in the assembly code.
@@ -223,12 +292,20 @@ Parse(parser_state *ParserState)
 						CValues->Dest = Dest;
 						CValues->Jump = Jump;
 					}
-					else MakeError(ParserState->Status, "SYNTAX ERROR: Either Dest or Jump command must accompany Comp");
+					else MakeError(ParserState->Status, "\nSYNTAX ERROR: Either Dest or Jump command must accompany Comp\n");
 				}
-				else MakeError(ParserState->Status, "SYNTAX ERROR: Comp command not found");
+				else MakeError(ParserState->Status, "\nSYNTAX ERROR: Comp command not found\n");
 			}
 		}
 	}
+	Advance(ParserState);
+}
+
+inline void
+Parse(parser_state *ParserState, symbol_state *SymbolState)
+{
+	ParsePseudoCommands(ParserState, SymbolState);
+	ParseCommandsAndSymbolize(ParserState, SymbolState);
 }
 
 internal bool32
@@ -237,37 +314,30 @@ HasMoreCommands(parser_state *ParserState)
 	return ParserState->CurrentCommand != ParserState->Commands;
 }
 
-internal void
-Advance(parser_state *ParserState)
-{
-	if(ParserState->CurrentCommand) ParserState->CurrentCommand = ParserState->CurrentCommand->Next;
-	else ParserState->CurrentCommand = ParserState->Commands;
-}
-
 internal command_type
 CommandType(parser_state *ParserState)
 {
 	return ParserState->CurrentCommand->Type;
 }
 
+// NOTE(Khisrow): Should be called only if command type is L_COMMAND or A_COMMAND
 internal char *
 Symbol(parser_state *ParserState)
 {
 	return (char *)ParserState->CurrentCommand->Value;
 }
 
+// NOTE (Khisrow): Dest,Comp, and Jump called only when command type is C_COMMAND
 internal char *
 Dest(parser_state *ParserState)
 {
 	return ((c_command_values *)ParserState->CurrentCommand->Value)->Dest;
 }
-
 internal char *
 Comp(parser_state *ParserState)
 {
 	return ((c_command_values *)ParserState->CurrentCommand->Value)->Comp;
 }
-
 internal char *
 Jump(parser_state *ParserState)
 {
